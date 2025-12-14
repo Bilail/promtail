@@ -3,8 +3,9 @@ version: "3.8"
 services:
   promtail-global:
     image: grafana/promtail:2.9.2
-    container_name: global-promtail
     restart: unless-stopped
+    container_name: promtail
+
     
     # "0:0" (Root) est INDISPENSABLE ici.
     # Sans ça, il ne peut lire ni le socket Docker, ni les logs système de l'hôte.
