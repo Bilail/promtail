@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  promtail-global:
+    image: grafana/promtail:2.9.2
+    container_name: global-promtail
+    restart: unless-stopped
+    
+    # "0:0" (Root) est INDISPENSABLE ici.
+    # Sans ça, il ne peut lire ni le socket Docker, ni les logs système de l'hôte.
+    user: "0:0"
+    
+    command: -config.file=/etc/promtail/config.yml -print-config-stderr
+    
+    networks:
+      - dokploy-network
+
+    volumes:
+      # 1. Injection de votre fichier de config
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+      
+      # 2. Accès au "Cerveau" de Docker (pour la découverte auto)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # 3. Accès aux logs des conteneurs (fichiers JSON sur le disque)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      
+      # 4. Accès aux logs système (Fail2Ban, Syslog, etc.)
+      - /var/log:/var/log:ro
+
+    # Limites de ressources pour éviter que l'agent ne consomme trop
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+networks:
+  dokploy-network:
+    external: true

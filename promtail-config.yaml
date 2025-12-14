@@ -1,0 +1,50 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  # Fichier important : il retient la dernière ligne lue pour ne pas
+  # renvoyer les vieux logs en cas de redémarrage.
+  filename: /tmp/positions.yaml
+
+clients:
+  # URL de votre Loki Central.
+  # IMPORTANT : Assurez-vous que le nom d'hôte "loki" correspond bien
+  # au container_name défini dans votre stack Loki (vu précédemment).
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # Optionnel : filtrez pour ne pas scanner certains conteneurs si besoin
+        # filters:
+        #   - name: name
+        #     values: ["mon-conteneur-secret"]
+
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      # On récupère le nom de l'image (utile pour savoir quelle version tourne)
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
+      # On ajoute un label "docker" pour filtrer facilement
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+  # --- JOB 2 : LOGS SYSTEME (FAIL2BAN, AUTH, ETC) ---
+  - job_name: system
+    static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: varlogs  # Label générique pour les fichiers de l'hôte
+        __path__: /var/log/*.log  # Lit syslog, auth.log, kern.log...
+    - targets:
+        - localhost
+      labels:
+        job: fail2ban # Label spécifique pour Fail2Ban
+        __path__: /var/log/fail2ban.log
